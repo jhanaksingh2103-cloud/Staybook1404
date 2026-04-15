@@ -1,0 +1,24 @@
+{
+  "name": "staybook",
+  "version": "1.0.0",
+  "description": "Airbnb-style Host Calendar — VS Code Ready",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.mongo.js",
+    "dev": "nodemon server.mongo.js",
+    "start:sqlite": "node server.js",
+    "dev:sqlite": "nodemon server.js"
+  },
+  "dependencies": {
+    "better-sqlite3": "^12.6.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.18.3",
+    "mongoose": "^8.19.2",
+    "nodemailer": "^8.0.2",
+    "uuid": "^9.0.1"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.0"
+  }
+}

@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+<title>StayBook — Properties</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@600;700;800&family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--teal:#0d9488;--ink:#0f172a;--muted:#94a3b8;--border:#e2e8f0;--white:#fff;--bg:#e8f4f3;--surface:#f8fafc}
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:'DM Sans',sans-serif;background:var(--bg);color:var(--ink)}
+  .shell{max-width:430px;min-height:100vh;margin:0 auto;background:var(--white);box-shadow:0 12px 40px rgba(0,0,0,.15)}
+  .hdr{padding:18px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;justify-content:space-between}
+  .logo{font-family:'Syne',sans-serif;font-size:22px;font-weight:800}
+  .logo .s{color:var(--teal)}
+  .tag{font-size:11px;color:var(--muted);margin-top:4px}
+  .btn{background:var(--teal);color:#fff;border:none;border-radius:16px;padding:10px 14px;font-weight:700;font-size:12px;cursor:pointer}
+  .body{padding:14px}
+  .card{border:1.5px solid var(--border);border-radius:20px;overflow:hidden;margin-bottom:14px;background:#fff}
+  .img{width:100%;height:200px;object-fit:cover;background:#dbeafe}
+  .img.clickable{cursor:pointer}
+  .cont{padding:14px}
+  .pill{display:inline-flex;align-items:center;gap:6px;background:#e7f8f4;color:#15803d;font-size:11px;font-weight:700;padding:5px 10px;border-radius:999px}
+  .pill:before{content:'';width:8px;height:8px;border-radius:50%;background:#16a34a}
+  h3{font-family:'Syne',sans-serif;font-size:17px;margin:10px 0 4px}
+  .loc{color:#64748b;font-weight:600}
+  .desc{margin-top:8px;line-height:1.45;color:#334155}
+  .row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+  .ghost{border:none;border-radius:12px;padding:10px 12px;font-weight:700;cursor:pointer}
+  .edit{background:#eaf8f6;color:#0d9488}
+  .open{background:#0d9488;color:#fff}
+  .delete{background:#fee2e2;color:#b91c1c}
+  .overlay{position:fixed;inset:0;background:rgba(15,23,42,.45);display:none;align-items:flex-end;justify-content:center;z-index:100}
+  .overlay.open{display:flex}
+  .sheet{width:100%;max-width:430px;background:#fff;border-radius:20px 20px 0 0;padding:14px}
+  .sheet h4{font-family:'Syne',sans-serif;font-size:16px;margin-bottom:10px}
+  .fgroup{margin-bottom:10px}
+  .label{display:block;font-size:11px;color:#475569;font-weight:700;margin-bottom:4px}
+  .input,.textarea,.select{width:100%;border:1.5px solid var(--border);border-radius:10px;padding:10px 12px;font-size:13px}
+  .textarea{min-height:84px;resize:vertical}
+  .img-tools{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+  .mini{font-size:12px;padding:9px 10px}
+  .hint{font-size:11px;color:#64748b;line-height:1.4;margin-top:7px}
+  .preview{width:100%;height:130px;object-fit:cover;border:1.5px solid var(--border);border-radius:12px;background:#f1f5f9;margin-top:8px}
+  .btnrow{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
+  .cancel{background:#e2e8f0;color:#0f172a}
+</style>
+</head>
+<body>
+  <div class="shell">
+    <div class="hdr">
+      <div>
+        <div class="logo"><span class="s">Stay</span>Book</div>
+        <div class="tag">Manage multiple properties in one place</div>
+      </div>
+      <button class="btn" onclick="openCalendar()">Add</button>
+    </div>
+
+    <div class="body" id="propertyList"></div>
+  </div>
+
+  <div class="overlay" id="editOverlay">
+    <div class="sheet">
+      <h4>Edit Property</h4>
+      <div class="fgroup">
+        <label class="label" for="e-title">Property name</label>
+        <input id="e-title" class="input" placeholder="Property name">
+      </div>
+      <div class="fgroup">
+        <label class="label" for="e-location">Location</label>
+        <input id="e-location" class="input" placeholder="City, State">
+      </div>
+      <div class="fgroup">
+        <label class="label" for="e-description">Description</label>
+        <textarea id="e-description" class="textarea" placeholder="Describe your property"></textarea>
+      </div>
+      <div class="fgroup">
+        <label class="label" for="e-image">Image (URL / Gallery / Paste)</label>
+        <input id="e-image" class="input" placeholder="https://...">
+        <div class="img-tools">
+          <button class="ghost edit mini" onclick="chooseGalleryImage()">Select from Gallery</button>
+          <button class="ghost edit mini" onclick="pasteImageFromClipboard()">Paste Image</button>
+        </div>
+        <input id="e-image-file" type="file" accept="image/*" style="display:none" onchange="handleImageFile(event)">
+        <div class="hint">Tip: you can copy-paste image URL, or copy an image and press ⌘V / Ctrl+V in this popup.</div>
+        <img id="e-image-preview" class="preview" alt="Image preview">
+      </div>
+      <div class="fgroup">
+        <label class="label" for="e-status">Status</label>
+        <select id="e-status" class="select">
+          <option value="Listed">Listed</option>
+          <option value="Unlisted">Unlisted</option>
+        </select>
+      </div>
+      <div class="btnrow">
+        <button class="ghost cancel" onclick="closeEditProperty()">Cancel</button>
+        <button class="ghost open" onclick="savePropertyEdit()">Save</button>
+      </div>
+    </div>
+  </div>
+<script>
+  function openCalendar(propertyId){
+    const selected = propertyId || localStorage.getItem('staybook_active_property') || 'property-1';
+    localStorage.setItem('staybook_active_property', selected);
+    const pid = encodeURIComponent(selected);
+    window.location.href = `/app?property=${pid}`;
+  }
+
+  const LEGACY_PROP_KEY = 'staybook_property_1';
+  const PROP_LIST_KEY = 'staybook_properties_v1';
+  let PROPERTIES = [];
+  let ACTIVE_PROPERTY_ID = null;
+  let EDIT_IMAGE_VALUE = '';
+
+  function getPropertyDefaults() {
+    return [
+      {
+        id: 'property-1',
+        title: 'Cozy Designer Penthouse',
+        location: 'Bengaluru, Karnataka',
+        description: 'Private terrace, bright interiors, and ideal for short city stays.',
+        image: 'https://images.unsplash.com/photo-1556912172-45b7abe8b7e1?q=80&w=1200&auto=format&fit=crop',
+        status: 'Listed'
+      },
+      {
+        id: 'property-2',
+        title: 'Sea View Studio',
+        location: 'Goa',
+        description: 'Sunset balcony, beach access, and perfect for weekend getaways.',
+        image: 'https://images.unsplash.com/photo-1499793983690-e29da59ef1c2?q=80&w=1200&auto=format&fit=crop',
+        status: 'Listed'
+      },
+      {
+        id: 'property-3',
+        title: 'Mountain Cabin Retreat',
+        location: 'Manali, Himachal Pradesh',
+        description: 'Wooden interiors, valley views, and peaceful workation vibes.',
+        image: 'https://images.unsplash.com/photo-1449824913935-59a10b8d2000?q=80&w=1200&auto=format&fit=crop',
+        status: 'Listed'
+      },
+      {
+        id: 'property-4',
+        title: 'Urban Sky Loft',
+        location: 'Mumbai, Maharashtra',
+        description: 'Modern design, central location, and fast check-in for city stays.',
+        image: 'https://images.unsplash.com/photo-1464890100898-a385f744067f?q=80&w=1200&auto=format&fit=crop',
+        status: 'Listed'
+      }
+    ];
+  }
+
+  function normalizeProperty(data, fallback) {
+    return {
+      id: data?.id || fallback.id,
+      title: data?.title || fallback.title,
+      location: data?.location || fallback.location,
+      description: data?.description || fallback.description,
+      image: data?.image || fallback.image,
+      status: data?.status === 'Unlisted' ? 'Unlisted' : 'Listed'
+    };
+  }
+
+  function loadProperties() {
+    const defaults = getPropertyDefaults();
+
+    try {
+      const rawList = localStorage.getItem(PROP_LIST_KEY);
+      if (rawList) {
+        const parsed = JSON.parse(rawList);
+        if (Array.isArray(parsed) && parsed.length) {
+          const normalized = parsed.map((item, index) => normalizeProperty(item, defaults[index] || defaults[0]));
+          if (normalized.length < 4) {
+            const filled = [...normalized];
+            for (let i = normalized.length; i < 4; i++) {
+              filled.push(defaults[i]);
+            }
+            localStorage.setItem(PROP_LIST_KEY, JSON.stringify(filled));
+            return filled;
+          }
+          return normalized;
+        }
+      }
+    } catch (_) {}
+
+    try {
+      const legacy = localStorage.getItem(LEGACY_PROP_KEY);
+      if (legacy) {
+        const oldData = JSON.parse(legacy);
+        const migrated = defaults.slice();
+        migrated[0] = normalizeProperty(oldData, defaults[0]);
+        localStorage.setItem(PROP_LIST_KEY, JSON.stringify(migrated));
+        return migrated;
+      }
+    } catch (_) {}
+
+    localStorage.setItem(PROP_LIST_KEY, JSON.stringify(defaults));
+    return defaults;
+  }
+
+  function saveProperties() {
+    localStorage.setItem(PROP_LIST_KEY, JSON.stringify(PROPERTIES));
+  }
+
+  function escapeHtml(text) {
+    return String(text)
+      .replaceAll('&', '&amp;')
+      .replaceAll('<', '&lt;')
+      .replaceAll('>', '&gt;')
+      .replaceAll('"', '&quot;')
+      .replaceAll("'", '&#39;');
+  }
+
+  function renderProperties() {
+    const root = document.getElementById('propertyList');
+    if (!PROPERTIES.length) {
+      root.innerHTML = '<div class="card"><div class="cont"><h3>No properties</h3><div class="desc">All properties are deleted.</div></div></div>';
+      return;
+    }
+
+    root.innerHTML = PROPERTIES.map((p, i) => `
+      <div class="card" id="prop-card-${i}">
+        <img class="img clickable" src="${escapeHtml(p.image)}" alt="Property" onclick="openCalendar('${escapeHtml(p.id)}')">
+        <div class="cont">
+          <div class="pill">${escapeHtml(p.status)}</div>
+          <h3>${escapeHtml(p.title)}</h3>
+          <div class="loc">${escapeHtml(p.location)}</div>
+          <div class="desc">${escapeHtml(p.description)}</div>
+          <div class="row">
+            <button class="ghost edit" onclick="openEditProperty(${i})">Edit</button>
+            <button class="ghost delete" onclick="deleteProperty(${i})">Delete</button>
+          </div>
+        </div>
+      </div>
+    `).join('');
+  }
+
+  function updateEditImagePreview(src) {
+    const preview = document.getElementById('e-image-preview');
+    const fallback = getPropertyDefaults()[0].image;
+    preview.src = src || fallback;
+  }
+
+  function chooseGalleryImage() {
+    document.getElementById('e-image-file').click();
+  }
+
+  function fileToDataURL(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(reader.result);
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handleImageFile(event) {
+    const file = event?.target?.files?.[0];
+    if (!file) return;
+    if (!file.type.startsWith('image/')) return;
+    const dataUrl = await fileToDataURL(file);
+    EDIT_IMAGE_VALUE = dataUrl;
+    document.getElementById('e-image').value = '';
+    updateEditImagePreview(dataUrl);
+  }
+
+  async function pasteImageFromClipboard() {
+    if (!navigator.clipboard || !navigator.clipboard.read) return;
+    try {
+      const items = await navigator.clipboard.read();
+      for (const item of items) {
+        const imgType = item.types.find(t => t.startsWith('image/'));
+        if (!imgType) continue;
+        const blob = await item.getType(imgType);
+        const dataUrl = await fileToDataURL(blob);
+        EDIT_IMAGE_VALUE = dataUrl;
+        document.getElementById('e-image').value = '';
+        updateEditImagePreview(dataUrl);
+        return;
+      }
+    } catch (_) {}
+  }
+
+  async function handlePasteInOverlay(event) {
+    const items = event?.clipboardData?.items || [];
+    for (const item of items) {
+      if (item.kind === 'file' && item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (!file) continue;
+        const dataUrl = await fileToDataURL(file);
+        EDIT_IMAGE_VALUE = dataUrl;
+        document.getElementById('e-image').value = '';
+        updateEditImagePreview(dataUrl);
+        return;
+      }
+    }
+  }
+
+  function openEditProperty(index) {
+    const data = PROPERTIES[index];
+    if (!data) return;
+    ACTIVE_PROPERTY_ID = index;
+    document.getElementById('e-title').value = data.title;
+    document.getElementById('e-location').value = data.location;
+    document.getElementById('e-description').value = data.description;
+    EDIT_IMAGE_VALUE = data.image;
+    document.getElementById('e-image').value = data.image.startsWith('data:image/') ? '' : data.image;
+    document.getElementById('e-status').value = data.status;
+    updateEditImagePreview(data.image);
+    document.getElementById('editOverlay').classList.add('open');
+  }
+
+  function closeEditProperty() {
+    ACTIVE_PROPERTY_ID = null;
+    document.getElementById('editOverlay').classList.remove('open');
+  }
+
+  function deleteProperty(index) {
+    if (index < 0 || index >= PROPERTIES.length) return;
+    const yes = window.confirm('Delete this property?');
+    if (!yes) return;
+    PROPERTIES.splice(index, 1);
+    saveProperties();
+    renderProperties();
+  }
+
+  function savePropertyEdit() {
+    if (ACTIVE_PROPERTY_ID === null || ACTIVE_PROPERTY_ID === undefined) return;
+    const typedImage = document.getElementById('e-image').value.trim();
+    const next = {
+      title: document.getElementById('e-title').value.trim() || 'Untitled Property',
+      location: document.getElementById('e-location').value.trim() || 'Unknown Location',
+      description: document.getElementById('e-description').value.trim() || 'No description',
+      image: typedImage || EDIT_IMAGE_VALUE || getPropertyDefaults()[0].image,
+      status: document.getElementById('e-status').value === 'Unlisted' ? 'Unlisted' : 'Listed'
+    };
+
+    PROPERTIES[ACTIVE_PROPERTY_ID] = next;
+    saveProperties();
+    renderProperties();
+    closeEditProperty();
+  }
+
+  document.getElementById('e-image').addEventListener('input', (e) => {
+    const value = e.target.value.trim();
+    if (!value) {
+      updateEditImagePreview(EDIT_IMAGE_VALUE);
+      return;
+    }
+    EDIT_IMAGE_VALUE = value;
+    updateEditImagePreview(value);
+  });
+
+  document.getElementById('editOverlay').addEventListener('paste', handlePasteInOverlay);
+
+  PROPERTIES = loadProperties();
+  renderProperties();
+</script>
+</body>
+</html>

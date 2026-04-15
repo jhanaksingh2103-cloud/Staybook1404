@@ -1,0 +1,87 @@
+### StayBook API Test File
+### Install "REST Client" extension by Huachao Mao to use this file
+### Click "Send Request" above any request to test it
+
+@baseUrl = http://localhost:3001/api
+
+# ─────────────────────────────────────
+# GET all bookings
+# ─────────────────────────────────────
+### Get all bookings
+GET {{baseUrl}}/bookings
+
+###
+
+# ─────────────────────────────────────
+# GET bookings for specific month
+# ─────────────────────────────────────
+### Get bookings for current month (month=2 means March, 0-indexed)
+GET {{baseUrl}}/bookings?month=2&year=2026
+
+###
+
+# ─────────────────────────────────────
+# CREATE a new booking
+# ─────────────────────────────────────
+### Create new booking
+POST {{baseUrl}}/bookings
+Content-Type: application/json
+
+{
+  "guest_name": "Test Guest",
+  "guest_email": "test@example.com",
+  "guest_phone": "+91 90000 00000",
+  "check_in": "2026-03-28",
+  "check_out": "2026-03-30",
+  "check_in_time": "14:00",
+  "check_out_time": "11:00",
+  "guests": 2,
+  "amount": 8200
+}
+
+###
+
+# ─────────────────────────────────────
+# SIMULATE Google Form submission
+# (Replace BOOKING_ID with a real ID from GET /bookings)
+# ─────────────────────────────────────
+### Simulate Google Form response (replace BOOKING_ID below)
+POST {{baseUrl}}/submit-form/BOOKING_ID
+Content-Type: application/json
+
+{
+  "Purpose of stay": "Family vacation",
+  "Estimated arrival time": "3:00 PM",
+  "Special requests": "Extra towels please",
+  "ID proof type": "Aadhar Card",
+  "Emergency contact": "+91 88888 99999",
+  "Dietary restrictions": "Vegetarian"
+}
+
+###
+
+# ─────────────────────────────────────
+# GET stats
+# ─────────────────────────────────────
+### Get dashboard stats
+GET {{baseUrl}}/stats?month=2&year=2026
+
+###
+
+# ─────────────────────────────────────
+# GET / UPDATE settings
+# ─────────────────────────────────────
+### Get settings
+GET {{baseUrl}}/settings
+
+### Update settings
+PATCH {{baseUrl}}/settings
+Content-Type: application/json
+
+{
+  "property_name": "My Holiday Home",
+  "price_per_night": "4500",
+  "google_form_link": "https://forms.gle/yourlink"
+}
+
+###
