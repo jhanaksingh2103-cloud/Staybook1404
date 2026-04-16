@@ -594,16 +594,35 @@ app.post('/api/bookings/:id/send-whatsapp', requireAuth, async (req, res) => {
   }
 });
 
-app.post('/api/submit-form/:booking_id', async (req, res) => {
+async function handleSubmitForm(req, res) {
   try {
-    const { booking_id } = req.params;
+    const booking_id = String(req.params.id || req.params.booking_id || '').trim();
+    if (!booking_id) {
+      return res.status(400).json({ success: false, message: 'booking_id is required' });
+    }
+
     const booking = await Booking.findOne({ id: booking_id }).lean();
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
-    const data = req.body;
-    if (!data || !Object.keys(data).length) {
-      return res.status(400).json({ success: false, message: 'No form data' });
-    }
+    const {
+      guest_name,
+      guest_phone,
+      guest_email,
+      members,
+      photo_of_members,
+      id_of_members
+    } = req.body || {};
+
+    console.log('Incoming data:', req.body || {});
+
+    const data = {
+      guest_name: guest_name || '',
+      guest_phone: guest_phone || '',
+      guest_email: guest_email || '',
+      members: members || '',
+      photo_of_members: photo_of_members || '',
+      id_of_members: id_of_members || ''
+    };
 
     await FormResponse.create({
       id: uuidv4(),
@@ -622,7 +641,10 @@ app.post('/api/submit-form/:booking_id', async (req, res) => {
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
-});
+}
+
+app.post('/api/submit-form/:id', handleSubmitForm);
+app.post('/api/submit-form/:booking_id', handleSubmitForm);
 
 app.get('/api/stats', requireAuth, async (req, res) => {
   try {

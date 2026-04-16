@@ -551,15 +551,36 @@ app.post('/api/bookings/:id/send-whatsapp', requireAuth, (req, res) => {
   });
 });
 
-// POST /api/submit-form/:booking_id  ← PUBLIC webhook (Google Form posts here)
-app.post('/api/submit-form/:booking_id', (req, res) => {
-  const { booking_id } = req.params;
-  if (!db.prepare('SELECT id FROM bookings WHERE id = ?').get(booking_id))
-    return res.status(404).json({ success: false, message: 'Booking not found' });
+// POST /api/submit-form/:id  ← PUBLIC webhook (Google Form / Apps Script posts here)
+const handleSubmitForm = (req, res) => {
+  const booking_id = String(req.params.id || req.params.booking_id || '').trim();
+  if (!booking_id) {
+    return res.status(400).json({ success: false, message: 'booking_id is required' });
+  }
 
-  const data = req.body;
-  if (!data || !Object.keys(data).length)
-    return res.status(400).json({ success: false, message: 'No form data' });
+  if (!db.prepare('SELECT id FROM bookings WHERE id = ?').get(booking_id)) {
+    return res.status(404).json({ success: false, message: 'Booking not found' });
+  }
+
+  const {
+    guest_name,
+    guest_phone,
+    guest_email,
+    members,
+    photo_of_members,
+    id_of_members
+  } = req.body || {};
+
+  console.log('Incoming data:', req.body || {});
+
+  const data = {
+    guest_name: guest_name || '',
+    guest_phone: guest_phone || '',
+    guest_email: guest_email || '',
+    members: members || '',
+    photo_of_members: photo_of_members || '',
+    id_of_members: id_of_members || ''
+  };
 
   db.prepare("INSERT INTO form_responses (id, booking_id, response_data) VALUES (?, ?, ?)")
     .run(uuidv4(), booking_id, JSON.stringify(data));
@@ -569,7 +590,10 @@ app.post('/api/submit-form/:booking_id', (req, res) => {
 
   console.log(`📋 Form response received for booking ${booking_id}`);
   res.json({ success: true, message: 'Response saved' });
-});
+};
+
+app.post('/api/submit-form/:id', handleSubmitForm);
+app.post('/api/submit-form/:booking_id', handleSubmitForm);
 
 // GET /api/stats
 app.get('/api/stats', requireAuth, (req, res) => {
