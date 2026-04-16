@@ -183,7 +183,7 @@ if (count.c === 0) {
   const insSetting = db.prepare("INSERT OR IGNORE INTO host_settings VALUES (?, ?)");
   insSetting.run('property_name', 'My Property');
   insSetting.run('price_per_night', '4100');
-  insSetting.run('google_form_link', 'https://docs.google.com/forms/d/e/1FAIpQLSd2alh5nDBuQzWE34_8w5yCzINGE6hhHvy2NO-b44Noxz23yg/viewform?usp=header');
+  insSetting.run('google_form_link', 'https://docs.google.com/forms/d/e/1FAIpQLSdXNH19FkTCYcSeQSiX38v-fWaVNM2_icyQBohKSSdDEdZPLw/viewform?usp=header');
 
   console.log('✅ Demo data seeded!');
 }

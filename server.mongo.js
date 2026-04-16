@@ -248,7 +248,7 @@ async function seedDefaults() {
 
   await upsertSetting('property_name', 'My Property');
   await upsertSetting('price_per_night', '4100');
-  await upsertSetting('google_form_link', 'https://docs.google.com/forms/d/e/1FAIpQLSd2alh5nDBuQzWE34_8w5yCzINGE6hhHvy2NO-b44Noxz23yg/viewform?usp=header');
+  await upsertSetting('google_form_link', 'https://docs.google.com/forms/d/e/1FAIpQLSdXNH19FkTCYcSeQSiX38v-fWaVNM2_icyQBohKSSdDEdZPLw/viewform?usp=header');
   await upsertSetting('gmail_user', '');
   await upsertSetting('gmail_app_password', '');
 }
