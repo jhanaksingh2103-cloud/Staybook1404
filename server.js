@@ -582,6 +582,11 @@ const handleSubmitForm = (req, res) => {
     id_of_members: id_of_members || ''
   };
 
+  const existingResponse = db.prepare('SELECT id FROM form_responses WHERE booking_id = ? LIMIT 1').get(booking_id);
+  if (existingResponse) {
+    return res.json({ success: true, message: 'Form already submitted for this booking' });
+  }
+
   db.prepare("INSERT INTO form_responses (id, booking_id, response_data) VALUES (?, ?, ?)")
     .run(uuidv4(), booking_id, JSON.stringify(data));
 

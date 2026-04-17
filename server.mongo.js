@@ -624,6 +624,11 @@ async function handleSubmitForm(req, res) {
       id_of_members: id_of_members || ''
     };
 
+    const existingResponse = await FormResponse.findOne({ booking_id }).lean();
+    if (existingResponse) {
+      return res.json({ success: true, message: 'Form already submitted for this booking' });
+    }
+
     await FormResponse.create({
       id: uuidv4(),
       booking_id,
