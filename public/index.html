@@ -336,6 +336,8 @@ input,textarea,select{font-family:'DM Sans',sans-serif;outline:none}
 /* ═══════════════════════════ CONFIG ═══════════════════════════ */
 // Auto-detects Replit URL or falls back to localhost
 const API = window.location.origin + '/api';
+const DEFAULT_GOOGLE_FORM_URL = 'https://docs.google.com/forms/d/e/1FAIpQLSdXNH19FkTCYcSeQSiX38v-fWaVNM2_icyQBohKSSdDEdZPLw/viewform?usp=header';
+const FORM_PREFILL_FIELD = 'entry.100195180';
 const ACTIVE_PROPERTY_ID = new URLSearchParams(window.location.search).get('property') || localStorage.getItem('staybook_active_property') || 'property-1';
 localStorage.setItem('staybook_active_property', ACTIVE_PROPERTY_ID);
 
@@ -345,6 +347,28 @@ function scopePathToProperty(path) {
   const params = new URLSearchParams(rawQuery);
   if (!params.get('property_id')) params.set('property_id', ACTIVE_PROPERTY_ID);
   return `${pathname}?${params.toString()}`;
+}
+
+function generateFormLink(bookingId, baseFormLink) {
+  const id = String(bookingId || '').trim();
+  if (!id) return '';
+
+  const base = String(baseFormLink || SETTINGS.google_form_link || DEFAULT_GOOGLE_FORM_URL).trim();
+  if (!base) return '';
+
+  try {
+    const url = new URL(base);
+    url.searchParams.set('usp', 'pp_url');
+    url.searchParams.set(FORM_PREFILL_FIELD, id);
+    return url.toString();
+  } catch (_) {
+    const safeBase = DEFAULT_GOOGLE_FORM_URL;
+    return `${safeBase.replace('usp=header', 'usp=pp_url')}&${FORM_PREFILL_FIELD}=${encodeURIComponent(id)}`;
+  }
+}
+
+function resolveGuestFormLink(bookingId, explicitLink) {
+  return generateFormLink(bookingId, explicitLink || SETTINGS.google_form_link || DEFAULT_GOOGLE_FORM_URL);
 }
 
 const TODAY = new Date();
@@ -714,6 +738,7 @@ async function openDetail(id) {
   if (!b) { showToast('❌ Could not load booking'); return; }
 
   const webhookUrl = `${API}/submit-form/${b.id}`;
+  const prefilledFormLink = resolveGuestFormLink(b.id, b.form_link || '');
   document.getElementById('detailTitle').textContent = 'Booking';
   const body = document.getElementById('detailBody');
 
@@ -746,6 +771,18 @@ async function openDetail(id) {
       </div>
       <div class="webhook-hint">
         Add this URL to your Google Apps Script trigger. When guest submits the form, their data auto-appears below.
+      </div>
+    </div>
+
+    <div class="webhook-box">
+      <div class="webhook-title">📝 Guest Form Link (prefilled booking id)</div>
+      <div class="webhook-url-row">
+        <div class="webhook-url" id="gfl-view-${b.id}">${prefilledFormLink || 'Add default Google Form link in Settings'}</div>
+        <button class="copy-btn" onclick="copyGuestFormLink('${b.id}')">Copy</button>
+      </div>
+      <div class="webhook-hint" style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+        <span>Send this link to guest. Booking ID is auto-filled.</span>
+        <button class="copy-btn" style="padding:6px 9px" onclick="openGuestForm('${b.id}')">Open</button>
       </div>
     </div>
 
@@ -796,7 +833,7 @@ async function sendForm(id) {
 }
 
 async function sendWhatsApp(id) {
-  const link = document.getElementById('gfl-'+id)?.value?.trim() || SETTINGS.google_form_link || '';
+  const link = resolveGuestFormLink(id, document.getElementById('gfl-'+id)?.value?.trim() || '');
   if (!link) { showToast('⚠️ Add Google Form link in Settings first'); return; }
 
   const r = await api('POST', `/bookings/${id}/send-whatsapp`, { form_link: link });
@@ -903,12 +940,6 @@ async function submitAdd() {
     return;
   }
 
-  if(!EDITING_BOOKING_ID && !formLink){
-    errEl.textContent='Please paste Google Form link to send on WhatsApp';
-    errEl.style.display='block';
-    return;
-  }
-  
   // Phone validation
   const phoneRegex = /^[\d\s\+\-\(\)]+$/;
   if(!phoneRegex.test(phone) || phone.replace(/\D/g, '').length < 10){
@@ -934,7 +965,8 @@ async function submitAdd() {
     property_id: ACTIVE_PROPERTY_ID,
     booking_source:source,
     check_in:ci,check_out:co,
-    amount:amountNum
+    amount:amountNum,
+    form_link: formLink || ''
   };
 
   const r = EDITING_BOOKING_ID
@@ -945,8 +977,9 @@ async function submitAdd() {
   btn.disabled=false;
 
   if(r.success){
-    if (!EDITING_BOOKING_ID && r.data?.id && formLink) {
-      const wa = await api('POST', `/bookings/${r.data.id}/send-whatsapp`, { form_link: formLink });
+    if (!EDITING_BOOKING_ID && r.data?.id) {
+      const createdFormLink = resolveGuestFormLink(r.data.id, formLink || '');
+      const wa = await api('POST', `/bookings/${r.data.id}/send-whatsapp`, { form_link: createdFormLink });
       if (wa.success && wa.data?.whatsapp_url) {
         window.open(wa.data.whatsapp_url, '_blank', 'noopener,noreferrer');
         showToast(`✅ Booking created & WhatsApp opened for ${name}`);
@@ -1121,6 +1154,16 @@ function fmtTime12h(t){
 }
 function fmtD(s){if(!s)return'—';return parseYMDLocal(s).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'})}
 function fmt(n){if(n>=100000)return(n/100000).toFixed(1)+'L';if(n>=1000)return(n/1000).toFixed(1)+'k';return String(n||0)}
+function openGuestForm(id){
+  const link = resolveGuestFormLink(id, '');
+  if(!link){showToast('⚠️ Add Google Form link in Settings first');return;}
+  window.open(link, '_blank', 'noopener,noreferrer');
+}
+function copyGuestFormLink(id){
+  const link = resolveGuestFormLink(id, '');
+  if(!link){showToast('⚠️ Add Google Form link in Settings first');return;}
+  copyText(link);
+}
 function copyText(t){navigator.clipboard?.writeText(t).then(()=>showToast('🔗 Copied!')).catch(()=>showToast('Copy: '+t))}
 function showToast(msg){
   const t=document.getElementById('toast');
