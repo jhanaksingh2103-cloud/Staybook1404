@@ -122,7 +122,13 @@ function normalizeBookingDoc(doc) {
 
 async function withResponses(bookingDoc) {
   const booking = normalizeBookingDoc(bookingDoc);
-  const response = await FormResponse.findOne({ booking_id: booking.id }).sort({ submitted_at: -1 }).lean();
+  const responseRows = await FormResponse.find({ booking_id: booking.id }).sort({ submitted_at: -1 }).lean();
+  const latestResponse = responseRows[0] || null;
+  const responseHistory = responseRows.map((row) => ({
+    id: row.id,
+    submitted_at: row.submitted_at,
+    response_data: row.response_data || {}
+  }));
   const booking_source = normalizeSource(booking.booking_source);
 
   return {
@@ -130,8 +136,10 @@ async function withResponses(bookingDoc) {
     booking_source,
     color: colorForSource(booking_source),
     form_sent: !!booking.form_sent,
-    form_responded: !!response,
-    form_responses: response ? response.response_data : {}
+    form_responded: responseHistory.length > 0,
+    form_response_count: responseHistory.length,
+    form_responses: latestResponse ? latestResponse.response_data : {},
+    form_responses_history: responseHistory
   };
 }
 
@@ -624,11 +632,6 @@ async function handleSubmitForm(req, res) {
       id_of_members: id_of_members || ''
     };
 
-    const existingResponse = await FormResponse.findOne({ booking_id }).lean();
-    if (existingResponse) {
-      return res.json({ success: true, message: 'Form already submitted for this booking' });
-    }
-
     await FormResponse.create({
       id: uuidv4(),
       booking_id,
@@ -636,13 +639,15 @@ async function handleSubmitForm(req, res) {
       submitted_at: new Date().toISOString()
     });
 
+    const submissionCount = await FormResponse.countDocuments({ booking_id });
+
     await Booking.updateOne(
       { id: booking_id },
       { $set: { status: 'confirmed', updated_at: new Date().toISOString() } }
     );
 
     console.log(`📋 Form response received for booking ${booking_id}`);
-    res.json({ success: true, message: 'Response saved' });
+    res.json({ success: true, message: 'Response saved', data: { submission_count: submissionCount } });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

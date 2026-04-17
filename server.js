@@ -202,16 +202,32 @@ const normalizeSource = (s) => (String(s || 'personal').toLowerCase() === 'airbn
 const colorForSource = (s) => SOURCE_COLORS[normalizeSource(s)] || SOURCE_COLORS.personal;
 const getInitials = name => name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
 
+const safeParseResponseData = (raw) => {
+  try {
+    return JSON.parse(raw);
+  } catch (_) {
+    return {};
+  }
+};
+
 const withResponses = (b) => {
-  const resp = db.prepare('SELECT * FROM form_responses WHERE booking_id = ? ORDER BY submitted_at DESC LIMIT 1').get(b.id);
+  const responses = db.prepare('SELECT * FROM form_responses WHERE booking_id = ? ORDER BY submitted_at DESC').all(b.id);
+  const latest = responses[0] || null;
+  const responseHistory = responses.map(r => ({
+    id: r.id,
+    submitted_at: r.submitted_at,
+    response_data: safeParseResponseData(r.response_data)
+  }));
   const booking_source = normalizeSource(b.booking_source);
   return {
     ...b,
     booking_source,
     color: colorForSource(booking_source),
     form_sent: !!b.form_sent,
-    form_responded: !!resp,
-    form_responses: resp ? JSON.parse(resp.response_data) : {}
+    form_responded: responseHistory.length > 0,
+    form_response_count: responseHistory.length,
+    form_responses: latest ? safeParseResponseData(latest.response_data) : {},
+    form_responses_history: responseHistory
   };
 };
 
@@ -582,19 +598,16 @@ const handleSubmitForm = (req, res) => {
     id_of_members: id_of_members || ''
   };
 
-  const existingResponse = db.prepare('SELECT id FROM form_responses WHERE booking_id = ? LIMIT 1').get(booking_id);
-  if (existingResponse) {
-    return res.json({ success: true, message: 'Form already submitted for this booking' });
-  }
-
   db.prepare("INSERT INTO form_responses (id, booking_id, response_data) VALUES (?, ?, ?)")
     .run(uuidv4(), booking_id, JSON.stringify(data));
+
+  const submissionCount = db.prepare('SELECT COUNT(*) as c FROM form_responses WHERE booking_id = ?').get(booking_id)?.c || 0;
 
   db.prepare("UPDATE bookings SET status='confirmed', updated_at=? WHERE id=?")
     .run(new Date().toISOString(), booking_id);
 
   console.log(`📋 Form response received for booking ${booking_id}`);
-  res.json({ success: true, message: 'Response saved' });
+  res.json({ success: true, message: 'Response saved', data: { submission_count: submissionCount } });
 };
 
 app.post('/api/submit-form/:id', handleSubmitForm);
