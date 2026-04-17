@@ -349,22 +349,8 @@ function scopePathToProperty(path) {
   return `${pathname}?${params.toString()}`;
 }
 
-function generateFormLink(bookingId, baseFormLink) {
-  const id = String(bookingId || '').trim();
-  if (!id) return '';
-
-  const base = String(baseFormLink || SETTINGS.google_form_link || DEFAULT_GOOGLE_FORM_URL).trim();
-  if (!base) return '';
-
-  try {
-    const url = new URL(base);
-    url.searchParams.set('usp', 'pp_url');
-    url.searchParams.set(FORM_PREFILL_FIELD, id);
-    return url.toString();
-  } catch (_) {
-    const safeBase = DEFAULT_GOOGLE_FORM_URL;
-    return `${safeBase.replace('usp=header', 'usp=pp_url')}&${FORM_PREFILL_FIELD}=${encodeURIComponent(id)}`;
-  }
+function generateFormLink(bookingId) {
+  return `https://docs.google.com/forms/d/e/1FAIpQLSdXNH19FkTCYcSeQSiX38v-fWaVNM2_icyQBohKSSdDEdZPLw/viewform?usp=pp_url&entry.100195180=${bookingId}`;
 }
 
 function resolveGuestFormLink(bookingId, explicitLink) {
@@ -834,6 +820,7 @@ async function sendForm(id) {
 
 async function sendWhatsApp(id) {
   const link = resolveGuestFormLink(id, document.getElementById('gfl-'+id)?.value?.trim() || '');
+  console.log(link);
   if (!link) { showToast('⚠️ Add Google Form link in Settings first'); return; }
 
   const r = await api('POST', `/bookings/${id}/send-whatsapp`, { form_link: link });
@@ -927,6 +914,7 @@ async function submitAdd() {
   const amountNum = parseInt(amountVal, 10);
   const formLink = document.getElementById('f-form-link').value.trim();
   const errEl=document.getElementById('addErr');
+  console.log(formLink);
 
   if(!name||!phone||!ci||!co||!source){
     errEl.textContent='Please fill all required fields';
@@ -979,6 +967,7 @@ async function submitAdd() {
   if(r.success){
     if (!EDITING_BOOKING_ID && r.data?.id) {
       const createdFormLink = resolveGuestFormLink(r.data.id, formLink || '');
+      console.log(createdFormLink);
       const wa = await api('POST', `/bookings/${r.data.id}/send-whatsapp`, { form_link: createdFormLink });
       if (wa.success && wa.data?.whatsapp_url) {
         window.open(wa.data.whatsapp_url, '_blank', 'noopener,noreferrer');
@@ -1156,11 +1145,13 @@ function fmtD(s){if(!s)return'—';return parseYMDLocal(s).toLocaleDateString('e
 function fmt(n){if(n>=100000)return(n/100000).toFixed(1)+'L';if(n>=1000)return(n/1000).toFixed(1)+'k';return String(n||0)}
 function openGuestForm(id){
   const link = resolveGuestFormLink(id, '');
+  console.log(link);
   if(!link){showToast('⚠️ Add Google Form link in Settings first');return;}
   window.open(link, '_blank', 'noopener,noreferrer');
 }
 function copyGuestFormLink(id){
   const link = resolveGuestFormLink(id, '');
+  console.log(link);
   if(!link){showToast('⚠️ Add Google Form link in Settings first');return;}
   copyText(link);
 }
