@@ -775,7 +775,7 @@ async function openDetail(id) {
     ${b.form_responded && Object.keys(b.form_responses||{}).length ? `
       <div class="sec-label">📝 Form Responses</div>
       ${Object.entries(b.form_responses).map(([q,a])=>`
-        <div class="resp-card"><div class="resp-q">${q}</div><div class="resp-a">${a}</div></div>`).join('')}
+        <div class="resp-card"><div class="resp-q">${q}</div><div class="resp-a">${renderFormResponseValue(q,a)}</div></div>`).join('')}
     ` : b.form_sent ? `
       <div class="awaiting">
         <div class="awaiting-icon">⏳</div>
@@ -1143,6 +1143,23 @@ function fmtTime12h(t){
 }
 function fmtD(s){if(!s)return'—';return parseYMDLocal(s).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'})}
 function fmt(n){if(n>=100000)return(n/100000).toFixed(1)+'L';if(n>=1000)return(n/1000).toFixed(1)+'k';return String(n||0)}
+function renderFormResponseValue(question, answer){
+  const q = String(question || '').toLowerCase().trim().replace(/\s+/g, '_');
+  const a = String(answer || '').trim();
+
+  const isPreviewField = q === 'id_of_members' || q === 'photo_of_members';
+  if (isPreviewField && a) {
+    const idUrl = a;
+    const fileIdMatch = idUrl?.match(/[-\w]{25,}/);
+    const previewUrl = fileIdMatch
+      ? `https://drive.google.com/uc?export=view&id=${fileIdMatch[0]}`
+      : idUrl;
+
+    return `<img src="${previewUrl}" style="width:120px; border-radius:8px; cursor:pointer;" onclick="window.open(this.src, '_blank')"/>`;
+  }
+
+  return a || '—';
+}
 function openFormLink(bookingId) {
   const link = `https://docs.google.com/forms/d/e/1FAIpQLSdXNH19FkTCYcSeQSiX38v-fWaVNM2_icyQBohKSSdDEdZPLw/viewform?usp=pp_url&entry.100195180=${bookingId}`;
   
