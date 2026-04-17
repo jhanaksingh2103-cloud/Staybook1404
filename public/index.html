@@ -768,7 +768,7 @@ async function openDetail(id) {
       </div>
       <div class="webhook-hint" style="display:flex;justify-content:space-between;gap:8px;align-items:center">
         <span>Send this link to guest. Booking ID is auto-filled.</span>
-        <button class="copy-btn" style="padding:6px 9px" onclick="openGuestForm('${b.id}')">Open</button>
+        <button class="copy-btn" style="padding:6px 9px" onclick="openFormLink('${b.id}')">Send Form</button>
       </div>
     </div>
 
@@ -1143,11 +1143,12 @@ function fmtTime12h(t){
 }
 function fmtD(s){if(!s)return'—';return parseYMDLocal(s).toLocaleDateString('en-IN',{day:'numeric',month:'short',year:'2-digit'})}
 function fmt(n){if(n>=100000)return(n/100000).toFixed(1)+'L';if(n>=1000)return(n/1000).toFixed(1)+'k';return String(n||0)}
-function openGuestForm(id){
-  const link = resolveGuestFormLink(id, '');
-  console.log(link);
-  if(!link){showToast('⚠️ Add Google Form link in Settings first');return;}
-  window.open(link, '_blank', 'noopener,noreferrer');
+function openFormLink(bookingId) {
+  const link = `https://docs.google.com/forms/d/e/1FAIpQLSdXNH19FkTCYcSeQSiX38v-fWaVNM2_icyQBohKSSdDEdZPLw/viewform?usp=pp_url&entry.100195180=${bookingId}`;
+  
+  console.log("FORM LINK:", link); // 🔥 must show in console
+  
+  window.open(link, "_blank");
 }
 function copyGuestFormLink(id){
   const link = resolveGuestFormLink(id, '');
