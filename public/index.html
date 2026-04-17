@@ -725,6 +725,9 @@ async function openDetail(id) {
 
   const webhookUrl = `${API}/submit-form/${b.id}`;
   const prefilledFormLink = resolveGuestFormLink(b.id, b.form_link || '');
+  const responseHistory = Array.isArray(b.form_responses_history)
+    ? b.form_responses_history
+    : (b.form_responded ? [{ id: 'latest', submitted_at: b.form_sent_at || '', response_data: b.form_responses || {} }] : []);
   document.getElementById('detailTitle').textContent = 'Booking';
   const body = document.getElementById('detailBody');
 
@@ -735,7 +738,6 @@ async function openDetail(id) {
         <h3>${b.guest_name}</h3>
         <p>${formatSourceLabel(b.booking_source)}</p>
         <p>${b.guest_phone||'No phone'}</p>
-        ${b.guest_email ? `<p>${b.guest_email}</p>` : ''}
         <span class="spill sp-${b.status}">
           ${b.status==='confirmed'?'✓ Confirmed':b.status==='pending'?'⏳ Pending':'✕ Cancelled'}
         </span>
@@ -772,10 +774,26 @@ async function openDetail(id) {
       </div>
     </div>
 
-    ${b.form_responded && Object.keys(b.form_responses||{}).length ? `
-      <div class="sec-label">📝 Form Responses</div>
-      ${Object.entries(b.form_responses).map(([q,a])=>`
-        <div class="resp-card"><div class="resp-q">${q}</div><div class="resp-a">${renderFormResponseValue(q,a)}</div></div>`).join('')}
+    ${responseHistory.length ? `
+      <div class="sec-label">📝 Form Responses <span class="hbadge">${responseHistory.length}</span></div>
+      ${responseHistory.map((entry, idx) => {
+        const submissionEntries = Object.entries(entry?.response_data || {})
+          .filter(([q]) => {
+            const key = String(q || '').toLowerCase().trim().replace(/\s+/g, '_');
+            return key !== 'guest_email' && key !== 'photo_of_members';
+          });
+        const submissionLabel = formatSubmissionLabel(entry?.submitted_at, responseHistory.length - idx);
+
+        return `
+          <div style="background:var(--white);border:1px solid var(--border);border-radius:12px;padding:10px 10px 2px;margin-bottom:10px">
+            <div class="resp-q" style="margin-bottom:8px">${submissionLabel}</div>
+            ${submissionEntries.length
+              ? submissionEntries.map(([q,a]) => `<div class="resp-card"><div class="resp-q">${q}</div><div class="resp-a">${renderFormResponseValue(q,a)}</div></div>`).join('')
+              : '<div class="resp-card"><div class="resp-a">No visible fields in this submission</div></div>'
+            }
+          </div>
+        `;
+      }).join('')}
     ` : b.form_sent ? `
       <div class="awaiting">
         <div class="awaiting-icon">⏳</div>
@@ -1149,16 +1167,32 @@ function renderFormResponseValue(question, answer){
 
   const isPreviewField = q === 'id_of_members' || q === 'photo_of_members';
   if (isPreviewField && a) {
-    const idUrl = a;
-    const fileIdMatch = idUrl?.match(/[-\w]{25,}/);
-    const previewUrl = fileIdMatch
-      ? `https://drive.google.com/uc?export=view&id=${fileIdMatch[0]}`
-      : idUrl;
+    const previewUrl = toDrivePreviewUrl(a);
 
     return `<img src="${previewUrl}" style="width:120px; border-radius:8px; cursor:pointer;" onclick="window.open(this.src, '_blank')"/>`;
   }
 
   return a || '—';
+}
+function toDrivePreviewUrl(rawUrl){
+  const url = String(rawUrl || '').trim();
+  if(!url) return '';
+
+  // Already direct image/file URL
+  if(url.includes('uc?export=view&id=')) return url;
+
+  const fileIdMatch = url.match(/[-\w]{25,}/);
+  if(fileIdMatch?.[0]) {
+    return `https://drive.google.com/uc?export=view&id=${fileIdMatch[0]}`;
+  }
+
+  return url;
+}
+function formatSubmissionLabel(submittedAt, fallbackNumber){
+  if(!submittedAt) return `Submission #${fallbackNumber}`;
+  const d = new Date(submittedAt);
+  if(Number.isNaN(d.getTime())) return `Submission #${fallbackNumber}`;
+  return `Submission #${fallbackNumber} · ${d.toLocaleString('en-IN',{day:'numeric',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit'})}`;
 }
 function openFormLink(bookingId) {
   const link = `https://docs.google.com/forms/d/e/1FAIpQLSdXNH19FkTCYcSeQSiX38v-fWaVNM2_icyQBohKSSdDEdZPLw/viewform?usp=pp_url&entry.100195180=${bookingId}`;
