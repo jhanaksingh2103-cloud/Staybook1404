@@ -612,6 +612,31 @@ async function handleSubmitForm(req, res) {
     const booking = await Booking.findOne({ id: booking_id }).lean();
     if (!booking) return res.status(404).json({ success: false, message: 'Booking not found' });
 
+    if (!booking.form_sent_at) {
+      return res.status(400).json({ success: false, message: 'Form link has not been sent for this booking yet' });
+    }
+
+    const validFrom = new Date(`${booking.check_in}T00:00:00`);
+    const validUntil = new Date(`${booking.check_out}T23:59:59.999`);
+    if (Number.isNaN(validFrom.getTime()) || Number.isNaN(validUntil.getTime())) {
+      return res.status(400).json({ success: false, message: 'Invalid check-in/check-out date on booking' });
+    }
+
+    const now = new Date();
+    if (now < validFrom) {
+      return res.status(403).json({
+        success: false,
+        message: `Form link will be active from check-in date (${booking.check_in})`
+      });
+    }
+
+    if (now > validUntil) {
+      return res.status(410).json({
+        success: false,
+        message: `Form link expired after checkout date (${booking.check_out})`
+      });
+    }
+
     const {
       guest_name,
       guest_phone,

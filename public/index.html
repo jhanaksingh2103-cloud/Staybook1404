@@ -149,6 +149,12 @@ input,textarea,select{font-family:'DM Sans',sans-serif;outline:none}
 .copy-btn{background:var(--teal);color:var(--white);border-radius:6px;padding:6px 10px;font-size:10px;font-weight:600;white-space:nowrap;flex-shrink:0;transition:.15s}
 .copy-btn:hover{background:var(--teal-d)}
 .webhook-hint{font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4}
+.form-links-accordion{background:var(--surface);border:1.5px solid var(--border);border-radius:12px;margin-bottom:14px;overflow:hidden}
+.form-links-accordion summary{list-style:none;cursor:pointer;padding:11px 12px;font-size:12px;font-weight:700;color:var(--ink2);display:flex;align-items:center;gap:7px}
+.form-links-accordion summary::-webkit-details-marker{display:none}
+.form-links-accordion summary::after{content:'▾';margin-left:auto;color:var(--muted);transition:transform .15s ease}
+.form-links-accordion[open] summary::after{transform:rotate(180deg)}
+.form-links-content{padding:0 11px 11px}
 
 /* Responses */
 .resp-card{background:var(--surface);border-radius:10px;padding:11px;margin-bottom:8px;border-left:3px solid var(--teal)}
@@ -763,28 +769,33 @@ async function openDetail(id) {
       <div class="ig-row"><div class="ig-ico">💰</div><div><div class="ig-l">Amount</div><div class="ig-v" style="font-weight:700;color:var(--teal-d)">₹${fmt(b.amount)}</div></div></div>
     </div>
 
-    <div class="webhook-box">
-      <div class="webhook-title">📡 Google Form Webhook URL</div>
-      <div class="webhook-url-row">
-        <div class="webhook-url" id="whk-${b.id}">${webhookUrl}</div>
-        <button class="copy-btn" onclick="copyText('${webhookUrl}')">Copy</button>
-      </div>
-      <div class="webhook-hint">
-        Add this URL to your Google Apps Script trigger. When guest submits the form, their data auto-appears below.
-      </div>
-    </div>
+    <details class="form-links-accordion">
+      <summary>🔽 Form Links & Webhook</summary>
+      <div class="form-links-content">
+        <div class="webhook-box">
+          <div class="webhook-title">📡 Google Form Webhook URL</div>
+          <div class="webhook-url-row">
+            <div class="webhook-url" id="whk-${b.id}">${webhookUrl}</div>
+            <button class="copy-btn" onclick="copyText('${webhookUrl}')">Copy</button>
+          </div>
+          <div class="webhook-hint">
+            Add this URL to your Google Apps Script trigger. When guest submits the form, their data auto-appears below.
+          </div>
+        </div>
 
-    <div class="webhook-box">
-      <div class="webhook-title">📝 Guest Form Link (prefilled booking id)</div>
-      <div class="webhook-url-row">
-        <div class="webhook-url" id="gfl-view-${b.id}">${prefilledFormLink || 'Add default Google Form link in Settings'}</div>
-        <button class="copy-btn" onclick="copyGuestFormLink('${b.id}')">Copy</button>
+        <div class="webhook-box" style="margin-bottom:0">
+          <div class="webhook-title">📝 Guest Form Link (prefilled booking id)</div>
+          <div class="webhook-url-row">
+            <div class="webhook-url" id="gfl-view-${b.id}">${prefilledFormLink || 'Add default Google Form link in Settings'}</div>
+            <button class="copy-btn" onclick="copyGuestFormLink('${b.id}')">Copy</button>
+          </div>
+          <div class="webhook-hint" style="display:flex;justify-content:space-between;gap:8px;align-items:center">
+            <span>Send this link to guest. Booking ID is auto-filled.</span>
+            <button class="copy-btn" style="padding:6px 9px" onclick="openFormLink('${b.id}')">Send Form</button>
+          </div>
+        </div>
       </div>
-      <div class="webhook-hint" style="display:flex;justify-content:space-between;gap:8px;align-items:center">
-        <span>Send this link to guest. Booking ID is auto-filled.</span>
-        <button class="copy-btn" style="padding:6px 9px" onclick="openFormLink('${b.id}')">Send Form</button>
-      </div>
-    </div>
+    </details>
 
     ${responseHistory.length ? `
       <div class="sec-label">📝 Form Responses <span class="hbadge">${responseHistory.length}</span></div>
@@ -1241,13 +1252,51 @@ function renderFormResponseValue(question, answer){
   const a = String(answer || '').trim();
 
   const isPreviewField = q === 'id_of_members' || q === 'photo_of_members';
-  if (isPreviewField && a) {
-    const previewUrl = toDrivePreviewUrl(a);
-
-    return `<img src="${previewUrl}" style="width:120px; border-radius:8px; cursor:pointer;" onclick="window.open(this.src, '_blank')"/>`;
+  if (isPreviewField) {
+    const imageUrls = extractImageUrls(answer);
+    if (imageUrls.length) {
+      return imageUrls
+        .map((url) => {
+          const previewUrl = toDrivePreviewUrl(url);
+          return `<img src="${previewUrl}" style="width:120px; border-radius:8px; cursor:pointer; margin:0 8px 8px 0;" onclick="window.open(this.src, '_blank')"/>`;
+        })
+        .join('');
+    }
   }
 
   return a || '—';
+}
+function extractImageUrls(answer){
+  if (Array.isArray(answer)) {
+    return answer.map((v) => String(v || '').trim()).filter(Boolean);
+  }
+
+  const raw = String(answer || '').trim();
+  if (!raw) return [];
+
+  if ((raw.startsWith('[') && raw.endsWith(']')) || (raw.startsWith('{') && raw.endsWith('}'))) {
+    try {
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        return parsed.map((v) => String(v || '').trim()).filter(Boolean);
+      }
+      if (parsed && Array.isArray(parsed.urls)) {
+        return parsed.urls.map((v) => String(v || '').trim()).filter(Boolean);
+      }
+    } catch (_) {
+      // continue with plain-text parsing
+    }
+  }
+
+  const urlMatches = raw.match(/https?:\/\/[^\s,]+/g);
+  if (urlMatches?.length) {
+    return urlMatches.map((v) => v.trim()).filter(Boolean);
+  }
+
+  return raw
+    .split(/[\n,;]+/)
+    .map((v) => v.trim())
+    .filter(Boolean);
 }
 function toDrivePreviewUrl(rawUrl){
   const url = String(rawUrl || '').trim();
