@@ -5,6 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
 <title>StayBook — Host Calendar</title>
 <link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
 <style>
 :root {
   --teal:#0d9488; --teal-d:#0f766e; --teal-l:#99f6e4; --teal-bg:#f0fdfa;
@@ -177,6 +178,12 @@ input,textarea,select{font-family:'DM Sans',sans-serif;outline:none}
 .finput{width:100%;background:var(--surface);border:1.5px solid var(--border);border-radius:10px;padding:11px 13px;font-size:13px;color:var(--ink);transition:.2s}
 .finput:focus{border-color:var(--teal);background:var(--white)}
 .frow{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.date-legend{margin-top:-4px;margin-bottom:10px;font-size:11px;color:var(--muted)}
+.date-legend .dot{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px;vertical-align:middle}
+
+/* Date picker availability */
+.flatpickr-day.booked-day{background:#fee2e2 !important;border-color:#fecaca !important;color:#b91c1c !important;text-decoration:line-through}
+.flatpickr-day.booked-day:hover{background:#fee2e2 !important}
 
 /* Settings */
 .setting-card{background:var(--surface);border-radius:16px;overflow:hidden;margin-bottom:14px}
@@ -289,9 +296,10 @@ input,textarea,select{font-family:'DM Sans',sans-serif;outline:none}
       <div class="fgroup"><label class="flabel">Guest Name *</label><input class="finput" id="f-name" placeholder="Full name"></div>
       <div class="fgroup"><label class="flabel">Phone *</label><input class="finput" id="f-phone" placeholder="+91 XXXXX XXXXX"></div>
       <div class="frow">
-        <div class="fgroup"><label class="flabel">Check-in *</label><input class="finput" id="f-ci" type="date"></div>
-        <div class="fgroup"><label class="flabel">Check-out *</label><input class="finput" id="f-co" type="date"></div>
+        <div class="fgroup"><label class="flabel">Check-in *</label><input class="finput" id="f-ci" type="text" placeholder="YYYY-MM-DD"></div>
+        <div class="fgroup"><label class="flabel">Check-out *</label><input class="finput" id="f-co" type="text" placeholder="YYYY-MM-DD"></div>
       </div>
+      <div class="date-legend"><span class="dot" style="background:#fca5a5"></span>Booked dates are marked and unavailable in calendar</div>
       <div class="frow">
         <div class="fgroup"><label class="flabel">Amount (₹) *</label><input class="finput" id="f-amount" type="number" min="1" placeholder="Enter amount"></div>
       </div>
@@ -332,6 +340,7 @@ input,textarea,select{font-family:'DM Sans',sans-serif;outline:none}
 
 <div class="toast" id="toast"></div>
 
+<script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
 <script>
 /* ═══════════════════════════ CONFIG ═══════════════════════════ */
 // Auto-detects Replit URL or falls back to localhost
@@ -362,6 +371,9 @@ let CY = TODAY.getFullYear(), CM = TODAY.getMonth();
 let BOOKINGS = [], SETTINGS = {}, activeTab = 'cal';
 let EDITING_BOOKING_ID = null;
 let RANGE_START_YMD = null;
+let PICKER_BOOKINGS = [];
+let CI_PICKER = null;
+let CO_PICKER = null;
 
 const MONTHS = ['January','February','March','April','May','June',
   'July','August','September','October','November','December'];
@@ -878,7 +890,7 @@ async function cancelBooking(id) {
 }
 
 /* ════════════════════ ADD BOOKING ════════════════════ */
-function openAddModal(ciPreset, coPreset) {
+async function openAddModal(ciPreset, coPreset) {
   EDITING_BOOKING_ID = null;
   document.getElementById('addTitle').textContent = 'New Booking';
   document.getElementById('addBtn').textContent = '📱 Send on WhatsApp';
@@ -893,6 +905,8 @@ function openAddModal(ciPreset, coPreset) {
   document.getElementById('addErr').style.display = 'none';
   ['f-name','f-phone','f-amount'].forEach(i=>document.getElementById(i).value='');
   document.getElementById('f-form-link').value = SETTINGS.google_form_link || '';
+  await refreshPickerBookings();
+  setupBookingDatePickers();
   RANGE_START_YMD = null;
   openOverlay('addOverlay');
 }
@@ -917,9 +931,70 @@ async function openEditModal(id) {
   document.getElementById('f-amount').value = b.amount || '';
   document.getElementById('f-form-link').value = b.form_link || SETTINGS.google_form_link || '';
   document.getElementById('addErr').style.display = 'none';
+  await refreshPickerBookings();
+  setupBookingDatePickers(EDITING_BOOKING_ID);
 
   closeOverlay('detailOverlay');
   openOverlay('addOverlay');
+}
+
+async function refreshPickerBookings() {
+  const res = await api('GET', '/bookings');
+  PICKER_BOOKINGS = Array.isArray(res.data) ? res.data : [];
+}
+
+function getPickerBookedRanges(excludeBookingId) {
+  return PICKER_BOOKINGS
+    .filter(b => b.status !== 'cancelled' && b.id !== excludeBookingId)
+    .map(b => ({ from: b.check_in, to: b.check_out }))
+    .filter(r => !!r.from && !!r.to);
+}
+
+function isYmdInRanges(ymd, ranges) {
+  return ranges.some(r => ymd >= r.from && ymd <= r.to);
+}
+
+function setupBookingDatePickers(excludeBookingId) {
+  if (typeof flatpickr === 'undefined') return;
+
+  const ranges = getPickerBookedRanges(excludeBookingId);
+  const minDate = ymdFromDate(d0(TODAY));
+
+  if (CI_PICKER) CI_PICKER.destroy();
+  if (CO_PICKER) CO_PICKER.destroy();
+
+  const commonConfig = {
+    dateFormat: 'Y-m-d',
+    disableMobile: true,
+    minDate,
+    disable: ranges,
+    onDayCreate: (_dObj, _dStr, _fp, dayElem) => {
+      const ymd = ymdFromDate(dayElem.dateObj);
+      if (isYmdInRanges(ymd, ranges)) {
+        dayElem.classList.add('booked-day');
+        dayElem.title = 'Booked';
+      }
+    }
+  };
+
+  CI_PICKER = flatpickr('#f-ci', {
+    ...commonConfig,
+    onChange: (_selectedDates, dateStr) => {
+      const ci = dateStr || '';
+      const coInput = document.getElementById('f-co');
+      if (CO_PICKER) CO_PICKER.set('minDate', ci || minDate);
+      if (coInput.value && ci && coInput.value < ci) {
+        coInput.value = ci;
+      }
+    }
+  });
+
+  CO_PICKER = flatpickr('#f-co', {
+    ...commonConfig
+  });
+
+  const ciVal = document.getElementById('f-ci').value;
+  if (ciVal) CO_PICKER.set('minDate', ciVal);
 }
 
 async function submitAdd() {
