@@ -52,7 +52,7 @@ Copy `.env.example` to `.env` and set your MongoDB connection string:
 
 ```
 MONGODB_URI=mongodb+srv://<username>:<password>@<cluster-url>/staybook?retryWrites=true&w=majority
-PORT=3001
+PORT=3002
 ```
 
 You can also use local MongoDB:
@@ -70,7 +70,7 @@ npm start
 You'll see:
 
 ```
-🏠 StayBook running on port 3001
+🏠 StayBook running on port 3002
 ```
 
 ### 5. Open the app
@@ -78,7 +78,7 @@ You'll see:
 Open your browser and go to:
 
 ```
-http://localhost:3001
+http://localhost:3002
 ```
 
 That's it! 🎉
@@ -125,7 +125,7 @@ Breakpoints, variable inspection — all work.
 ```javascript
 function onFormSubmit(e) {
   // Paste your booking's webhook URL here
-  var webhookUrl = "http://localhost:3001/api/submit-form/YOUR_BOOKING_ID";
+  var webhookUrl = "http://localhost:3002/api/submit-form/YOUR_BOOKING_ID";
 
   var responses = {};
   e.response.getItemResponses().forEach(function (item) {
@@ -148,7 +148,7 @@ function onFormSubmit(e) {
 5. Guest submits form → response instantly appears in the app ✅
 
 > **Note:** For Google Forms to reach your local machine, you need a public URL.
-> Use **ngrok** (free): `npx ngrok http 3001` → copy the https URL it gives you.
+> Use **ngrok** (free): `npx ngrok http 3002` → copy the https URL it gives you.
 
 ---
 
@@ -209,7 +209,8 @@ staybook/
 | ------------------------------ | ------------------------------------------------------- |
 | `npm: command not found`       | Install Node.js from https://nodejs.org                 |
 | `Cannot find module 'express'` | Run `npm install` again                                 |
-| Port 3001 already in use       | Change PORT in server.js line 1: `const PORT = 3002`    |
+| Port already in use       | Change PORT in server.js line 1: `const PORT = 3002`    |
 | White screen in browser        | Make sure server is running, check terminal for errors  |
 | Database errors                | Delete `staybook.db` and restart — it will be recreated |
 # Staybook1404
+# Staybook1404-1704
